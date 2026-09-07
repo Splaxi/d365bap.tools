@@ -21,8 +21,8 @@
         added to the removal list, so the environment stays in a working
         state.
         
-        Supports WhatIf and Confirm. Without -Force the cmdlet never calls
-        DELETE msprov_fnomodules; that record-only fallback requires -Force.
+        Without -Force the cmdlet never calls DELETE msprov_fnomodules.
+        That record-only fallback requires -Force.
         
     .PARAMETER EnvironmentId
         The id of the environment that you want to work against
@@ -53,12 +53,6 @@
         Without Force the cmdlet never calls DELETE msprov_fnomodules.
         
     .EXAMPLE
-        PS C:\> Remove-UdeEnvironmentModel -EnvironmentId "env-123" -Model "B" -WhatIf
-        
-        This will show what would happen if the model B was removed from the specified environment id.
-        It will NOT remove the model yet.
-        
-    .EXAMPLE
         PS C:\> Remove-UdeEnvironmentModel -EnvironmentId "env-123" -Model "B"
         
         This will remove the model B from the specified environment id.
@@ -76,7 +70,7 @@
 function Remove-UdeEnvironmentModel {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseSingularNouns", "")]
-    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "High")]
+    [CmdletBinding()]
     [OutputType('System.Object[]')]
     param (
 
@@ -175,13 +169,6 @@ function Remove-UdeEnvironmentModel {
                 return
             }
 
-            if ($WhatIfPreference) {
-                $hashReferencesByModel[$installedName] = @()
-
-                Write-PSFMessage -Level Important -Message "Would resolve dependencies for model <c='em'>$installedName</c> from seed package <c='em'>$($seedInfo.PackageName)</c>."
-                continue
-            }
-
             $seedZipPath = Save-ModelSeedPackage -BaseUri $baseUri `
                 -Headers $headers `
                 -Seed $seedInfo `
@@ -215,31 +202,29 @@ function Remove-UdeEnvironmentModel {
             }
         }
 
-        if ($PSCmdlet.ShouldProcess("$($envObj.PpacEnvName)", "Remove model(s): $($colExpandedNames -join ', ')")) {
-            $resCol = @(
-                foreach ($removeName in $colExpandedNames) {
-                    $deleteResult = Invoke-ModelDeletePackage -BaseUri $baseUri `
-                        -Headers $headers `
-                        -Environment $envObj `
-                        -ModelName $removeName `
-                        -SeedZipPath $hashSeedZipByModel[$removeName] `
-                        -WorkFolder $WorkFolder `
-                        -WaitForCompletion:$WaitForCompletion `
-                        -DownloadLog:$DownloadLog `
-                        -Force:$Force
+        $resCol = @(
+            foreach ($removeName in $colExpandedNames) {
+                $deleteResult = Invoke-ModelDeletePackage -BaseUri $baseUri `
+                    -Headers $headers `
+                    -Environment $envObj `
+                    -ModelName $removeName `
+                    -SeedZipPath $hashSeedZipByModel[$removeName] `
+                    -WorkFolder $WorkFolder `
+                    -WaitForCompletion:$WaitForCompletion `
+                    -DownloadLog:$DownloadLog `
+                    -Force:$Force
 
-                    if ($null -eq $deleteResult) {
-                        Stop-PSFFunction -Message "Stopping because the delete deployment failed." `
-                            -Exception $([System.Exception]::new("The delete deployment failed. See previous messages for details."))
-                        return
-                    }
-
-                    $deleteResult
+                if ($null -eq $deleteResult) {
+                    Stop-PSFFunction -Message "Stopping because the delete deployment failed." `
+                        -Exception $([System.Exception]::new("The delete deployment failed. See previous messages for details."))
+                    return
                 }
-            )
 
-            $resCol
-        }
+                $deleteResult
+            }
+        )
+
+        $resCol
     }
 
     end {
@@ -247,8 +232,8 @@ function Remove-UdeEnvironmentModel {
 }
 
 function Get-ModelSeedPackage {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
-    [CmdletBinding(SupportsShouldProcess = $true)]
+    [CmdletBinding()]
+    [OutputType([psobject])]
     param (
         [Parameter(Mandatory = $true)]
         [string] $BaseUri,
@@ -270,18 +255,6 @@ function Get-ModelSeedPackage {
         Select-Object -ExpandProperty value
 
     foreach ($packageObj in $colPackages) {
-        if ($WhatIfPreference) {
-            $whatIfPackage = [PsCustomObject]@{
-                PackageId   = "$($packageObj.msprov_fnopackageid)"
-                PackageName = "$($packageObj.msprov_name)"
-            }
-
-            Write-PSFMessage -Level Important -Message "Found seed package candidate <c='em'>$($whatIfPackage.PackageName)</c> for model <c='em'>$ModelName</c>."
-
-            $whatIfPackage
-            return
-        }
-
         $seedZipPath = Join-Path ([System.IO.Path]::GetTempPath()) "$([guid]::NewGuid().ToString()).zip"
 
         try {
@@ -356,7 +329,8 @@ function Get-ModelSeedPackage {
 
 function Save-ModelSeedPackage {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
-    [CmdletBinding(SupportsShouldProcess = $true)]
+    [CmdletBinding()]
+    [OutputType([string])]
     param (
         [Parameter(Mandatory = $true)]
         [string] $BaseUri,
@@ -382,17 +356,13 @@ function Save-ModelSeedPackage {
     $outDir = Join-Path $modelDir "out"
 
     foreach ($dirPath in @($seedDir, $outDir)) {
-        if ($PSCmdlet.ShouldProcess($dirPath, "Create Directory")) {
-            New-Item -Path $dirPath `
-                -ItemType Directory `
-                -Force `
-                -WarningAction SilentlyContinue > $null
-        }
+        New-Item -Path $dirPath `
+            -ItemType Directory `
+            -Force `
+            -WarningAction SilentlyContinue > $null
     }
 
     $seedZipPath = Join-Path $seedDir "$($ModelName)_seed.zip"
-
-    if (-not $PSCmdlet.ShouldProcess($seedZipPath, "Download Seed Package")) { return }
 
     try {
         Invoke-WebRequest -Uri ($BaseUri + "api/data/v9.0/msprov_fnopackages($($Seed.PackageId))/msprov_packagepayload/`$value") `
@@ -422,6 +392,7 @@ function Save-ModelSeedPackage {
 
 function Get-ModelModuleReference {
     [CmdletBinding()]
+    [OutputType([string[]])]
     param (
         [Parameter(Mandatory = $true)]
         [string] $SeedZipPath,
@@ -440,7 +411,7 @@ function Get-ModelModuleReference {
             $zipObj.Dispose()
             [GC]::Collect()
             [GC]::WaitForPendingFinalizers()
-            return @()
+            return [string[]]@()
         }
 
         $reader = New-Object System.IO.StreamReader($descriptorEntry.Open())
@@ -452,17 +423,18 @@ function Get-ModelModuleReference {
 
         $descriptorXml = [xml]$descriptorText
 
-        @($descriptorXml.AxModelInfo.ModuleReferences.string | Where-Object { -not [System.String]::IsNullOrWhiteSpace($_) })
+        return [string[]]@($descriptorXml.AxModelInfo.ModuleReferences.string | Where-Object { -not [System.String]::IsNullOrWhiteSpace($_) })
     }
     catch {
         [GC]::Collect()
         [GC]::WaitForPendingFinalizers()
-        @()
+        return [string[]]@()
     }
 }
 
 function Expand-ModelRemovalList {
     [CmdletBinding()]
+    [OutputType([string[]])]
     param (
         [Parameter(Mandatory = $true)]
         [string[]] $RequestedNames,
@@ -495,11 +467,12 @@ function Expand-ModelRemovalList {
         }
     }
 
-    @($colExpanded)
+    return [string[]]@($colExpanded)
 }
 
 function Invoke-ModelDeletePackage {
     [CmdletBinding()]
+    [OutputType([psobject])]
     param (
         [Parameter(Mandatory = $true)]
         [string] $BaseUri,
@@ -746,6 +719,7 @@ function Invoke-ModelDeletePackage {
 function Set-ModelDeleteDefinition {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSUseShouldProcessForStateChangingFunctions", "")]
     [CmdletBinding()]
+    [OutputType()]
     param (
         [Parameter(Mandatory = $true)]
         [psobject] $Definition,
@@ -781,6 +755,7 @@ function Set-ModelDeleteDefinition {
 
 function Send-ModelPackagePayload {
     [CmdletBinding()]
+    [OutputType([bool])]
     param (
         [Parameter(Mandatory = $true)]
         [string] $BaseUri,
@@ -865,6 +840,7 @@ function Send-ModelPackagePayload {
 
 function Wait-ModelAsyncOperation {
     [CmdletBinding()]
+    [OutputType([psobject])]
     param (
         [Parameter(Mandatory = $true)]
         [string] $BaseUri,
@@ -901,6 +877,7 @@ function Wait-ModelAsyncOperation {
 
 function Save-ModelOperationLog {
     [CmdletBinding()]
+    [OutputType()]
     param (
         [Parameter(Mandatory = $true)]
         [string] $BaseUri,

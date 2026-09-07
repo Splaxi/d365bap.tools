@@ -28,6 +28,7 @@
 #>
 function Get-UdePackageModelName {
     [CmdletBinding()]
+    [OutputType([string])]
     param (
         [Parameter(Mandatory = $true)]
         [AllowEmptyString()]

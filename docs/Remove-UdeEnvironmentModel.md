@@ -14,8 +14,7 @@ Remove models from a unified environment.
 
 ```
 Remove-UdeEnvironmentModel [-EnvironmentId] <String> [-Model] <String[]> [[-WorkFolder] <String>]
- [-WaitForCompletion] [-DownloadLog] [-Force] [-ProgressAction <ActionPreference>] [-WhatIf] [-Confirm]
- [<CommonParameters>]
+ [-WaitForCompletion] [-DownloadLog] [-Force] [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -40,21 +39,12 @@ list references another installed model, the referenced model is
 added to the removal list, so the environment stays in a working
 state.
 
-Supports WhatIf and Confirm.
-Without -Force the cmdlet never calls
-DELETE msprov_fnomodules; that record-only fallback requires -Force.
+Without -Force the cmdlet never calls DELETE msprov_fnomodules.
+That record-only fallback requires -Force.
 
 ## EXAMPLES
 
 ### EXAMPLE 1
-```
-Remove-UdeEnvironmentModel -EnvironmentId "env-123" -Model "B" -WhatIf
-```
-
-This will show what would happen if the model B was removed from the specified environment id.
-It will NOT remove the model yet.
-
-### EXAMPLE 2
 ```
 Remove-UdeEnvironmentModel -EnvironmentId "env-123" -Model "B"
 ```
@@ -62,7 +52,7 @@ Remove-UdeEnvironmentModel -EnvironmentId "env-123" -Model "B"
 This will remove the model B from the specified environment id.
 It will wait for the delete deployment to complete.
 
-### EXAMPLE 3
+### EXAMPLE 2
 ```
 Remove-UdeEnvironmentModel -EnvironmentId "env-123" -Model "A" -DownloadLog
 ```
@@ -91,6 +81,8 @@ Accept wildcard characters: False
 The names of the models that you want to remove.
 
 Each name is validated against Get-UdeEnvironmentModel.
+If the module table is empty, names fall back to the package
+names from Get-UnifiedEnvironmentPackage.
 
 ```yaml
 Type: String[]
@@ -166,37 +158,6 @@ Aliases:
 Required: False
 Position: Named
 Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -WhatIf
-Shows what would happen if the cmdlet runs.
-The cmdlet is not run.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: wi
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -Confirm
-Prompts you for confirmation before running the cmdlet.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: cf
-
-Required: False
-Position: Named
-Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

@@ -18,10 +18,16 @@ Get-UdeEnvironmentModel [-EnvironmentId] <String> [[-Name] <String>] [-LatestOnl
 ```
 
 ## DESCRIPTION
-Gets the models for a specified environment.
+Gets the currently installed models for a specified environment.
 
 Works against any unified environment (UDE, USE and others).
-Queries the msprov_fnomodule table through the Dataverse Web API.
+
+Installed state is taken from the latest completed msprov_fnopackage
+per model.
+A latest completed Delete package means the model is not
+installed.
+The msprov_fnomodule table is only used to enrich the
+output when a matching row exists.
 
 ## EXAMPLES
 
