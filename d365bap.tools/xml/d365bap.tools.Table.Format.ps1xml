@@ -1440,6 +1440,46 @@
       </TableControl>
     </View>
     <View>
+      <Name>D365Bap.Tools.UdeEnvironmentModelDelete</Name>
+      <ViewSelectedBy>
+        <TypeName>D365Bap.Tools.UdeEnvironmentModelDelete</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader>
+            <Width>30</Width>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Width>30</Width>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Width>12</Width>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Width>36</Width>
+          </TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem>
+                <PropertyName>Environment</PropertyName>
+              </TableColumnItem>
+              <TableColumnItem>
+                <PropertyName>Model</PropertyName>
+              </TableColumnItem>
+              <TableColumnItem>
+                <PropertyName>Status</PropertyName>
+              </TableColumnItem>
+              <TableColumnItem>
+                <PropertyName>PackageId</PropertyName>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
       <Name>D365Bap.Tools.UdeEnvironmentModule</Name>
       <ViewSelectedBy>
         <TypeName>D365Bap.Tools.UdeEnvironmentModule</TypeName>

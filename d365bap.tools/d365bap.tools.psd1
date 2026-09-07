@@ -158,6 +158,7 @@
 		, 'New-UnifiedEnvironment'
 		
 		, 'Remove-BapTenantDetail'
+		, 'Remove-UdeEnvironmentModel'
 		
 		, 'Set-BapAzCopyPath'
 		
