@@ -132,6 +132,7 @@
 		, 'Get-UdeDbJit'
 		, 'Get-UdeDbJitCache'
 		, 'Get-UdeDeveloperFile'
+		, 'Get-UdeEnvironmentModel'
 		, 'Get-UdePackageLocalDirectory'
 		, 'Get-UdeVsPackageDeploy'
 		, 'Get-UdeVsPowerPlatformExtensionHistory'
