@@ -132,6 +132,7 @@
 		, 'Get-UdeDbJit'
 		, 'Get-UdeDbJitCache'
 		, 'Get-UdeDeveloperFile'
+		, 'Get-UdeEnvironmentModel'
 		, 'Get-UdePackageLocalDirectory'
 		, 'Get-UdeVsPackageDeploy'
 		, 'Get-UdeVsPowerPlatformExtensionHistory'
@@ -157,6 +158,7 @@
 		, 'New-UnifiedEnvironment'
 		
 		, 'Remove-BapTenantDetail'
+		, 'Remove-UdeEnvironmentModel'
 		
 		, 'Set-BapAzCopyPath'
 		
