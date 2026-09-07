@@ -4,10 +4,14 @@
         Get UDE environment models.
         
     .DESCRIPTION
-        Gets the models for a specified environment.
+        Gets the currently installed models for a specified environment.
         
         Works against any unified environment (UDE, USE and others).
-        Queries the msprov_fnomodule table through the Dataverse Web API.
+        
+        Installed state is taken from the latest completed msprov_fnopackage
+        per model. A latest completed Delete package means the model is not
+        installed. The msprov_fnomodule table is only used to enrich the
+        output when a matching row exists.
         
     .PARAMETER EnvironmentId
         The id of the environment that you want to work against
@@ -96,34 +100,116 @@ function Get-UdeEnvironmentModel {
             "Prefer"           = "odata.include-annotations=*"
         }
 
-        $localUri = $baseUri + "api/data/v9.0/msprov_fnomodules"
-
-        $colModules = Invoke-RestMethod -Uri $localUri `
+        $colPackages = Invoke-RestMethod -Uri ($baseUri + "api/data/v9.0/msprov_fnopackages") `
             -Method Get `
             -Headers $headers | `
             Select-Object -ExpandProperty value | `
-            Where-Object { $_.msprov_name -like $Name } | `
             Sort-Object -Property modifiedon -Descending
 
+        $hashLatestCompletedByModel = @{}
+
+        foreach ($packageObj in $colPackages) {
+            if ("$($packageObj.statuscode)" -ne "4") { continue }
+
+            $modelName = Get-UdePackageModelName -PackageName $packageObj.msprov_name
+
+            if ([System.String]::IsNullOrWhiteSpace($modelName)) { continue }
+            if ($hashLatestCompletedByModel.ContainsKey($modelName)) { continue }
+
+            $hashLatestCompletedByModel[$modelName] = $packageObj
+        }
+
+        $colInstalledNames = @(
+            $hashLatestCompletedByModel.Keys | Where-Object {
+                "$($hashLatestCompletedByModel[$_].msprov_buildtype)" -ne "2" -and $_ -like $Name
+            }
+        )
+
+        $colModules = Invoke-RestMethod -Uri ($baseUri + "api/data/v9.0/msprov_fnomodules") `
+            -Method Get `
+            -Headers $headers | `
+            Select-Object -ExpandProperty value
+
+        $hashModuleByName = @{}
+
+        foreach ($moduleObj in $colModules) {
+            $hashModuleByName["$($moduleObj.msprov_name)"] = $moduleObj
+        }
+
+        $buildTypeNames = @{
+            "0" = "Full"
+            "1" = "Incremental"
+            "2" = "Delete"
+            "3" = "DBSync"
+        }
+
+        $colInstalled = @(
+            foreach ($modelName in $colInstalledNames) {
+                $packageObj = $hashLatestCompletedByModel[$modelName]
+                $moduleObj = $hashModuleByName[$modelName]
+
+                $createdOn = $null
+                $modifiedOn = $packageObj.modifiedon
+                $createdBy = $null
+                $modifiedBy = $null
+                $status = $null
+                $state = $null
+                $moduleId = $null
+                $version = $null
+
+                if ($null -ne $moduleObj) {
+                    $createdOn = $moduleObj.createdon
+                    $createdBy = $moduleObj.'_createdby_value@OData.Community.Display.V1.FormattedValue'
+                    $modifiedBy = $moduleObj.'_modifiedby_value@OData.Community.Display.V1.FormattedValue'
+                    $status = $moduleObj.'statuscode@OData.Community.Display.V1.FormattedValue'
+                    $state = $moduleObj.'statecode@OData.Community.Display.V1.FormattedValue'
+                    $moduleId = $moduleObj.msprov_fnomoduleid
+                    $version = $moduleObj.versionnumber
+                }
+
+                if ($null -eq $createdOn) { $createdOn = $packageObj.createdon }
+                if ([System.String]::IsNullOrWhiteSpace($createdBy)) { $createdBy = $packageObj.'_createdby_value@OData.Community.Display.V1.FormattedValue' }
+                if ([System.String]::IsNullOrWhiteSpace($modifiedBy)) { $modifiedBy = $packageObj.'_modifiedby_value@OData.Community.Display.V1.FormattedValue' }
+                if ([System.String]::IsNullOrWhiteSpace($status)) { $status = $packageObj.'statuscode@OData.Community.Display.V1.FormattedValue' }
+                if ([System.String]::IsNullOrWhiteSpace($state)) { $state = $packageObj.'statecode@OData.Community.Display.V1.FormattedValue' }
+
+                $buildType = $buildTypeNames["$($packageObj.msprov_buildtype)"]
+                if ([System.String]::IsNullOrWhiteSpace($buildType)) { $buildType = "$($packageObj.msprov_buildtype)" }
+
+                $createdUtc = $null
+                $modifiedUtc = $null
+
+                if ($null -ne $createdOn) { $createdUtc = ([datetime]$createdOn).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") }
+                if ($null -ne $modifiedOn) { $modifiedUtc = ([datetime]$modifiedOn).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") }
+
+                [PsCustomObject][ordered]@{
+                    Name         = $modelName
+                    ModuleId     = $moduleId
+                    PackageId    = $packageObj.msprov_fnopackageid
+                    PackageName  = $packageObj.msprov_name
+                    BuildType    = $buildType
+                    CreatedBy    = $createdBy
+                    ModifiedBy   = $modifiedBy
+                    Status       = $status
+                    State        = $state
+                    Created      = $createdOn
+                    CreatedUtc   = $createdUtc
+                    Modified     = $modifiedOn
+                    ModifiedUtc  = $modifiedUtc
+                    Version      = $version
+                    PSTypeName   = 'D365Bap.Tools.UdeEnvironmentModel'
+                }
+            }
+        )
+
+        $colInstalled = @($colInstalled | Sort-Object -Property Modified -Descending)
+
         if ($LatestOnly) {
-            $colModules = $colModules | Select-Object -First 1
+            $colInstalled = $colInstalled | Select-Object -First 1
         }
 
         $resCol = @(
-            $colModules | Select-PSFObject -TypeName 'D365Bap.Tools.UdeEnvironmentModel' `
-                -Property "msprov_name As Name",
-            "msprov_fnomoduleid As ModuleId",
-            "'_createdby_value@OData.Community.Display.V1.FormattedValue' As CreatedBy",
-            "'_modifiedby_value@OData.Community.Display.V1.FormattedValue' As ModifiedBy",
-            "'statuscode@OData.Community.Display.V1.FormattedValue' As Status",
-            "'statecode@OData.Community.Display.V1.FormattedValue' As State",
-            "createdon As Created",
-            @{ Name = "CreatedUtc"; Expression = { ([datetime]$_.createdon).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") } },
-            "modifiedon As Modified",
-            @{ Name = "ModifiedUtc"; Expression = { ([datetime]$_.modifiedon).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") } },
-            "versionnumber As Version",
-            * `
-                -ExcludeProperty '@odata.etag'
+            $colInstalled | Select-PSFObject -TypeName 'D365Bap.Tools.UdeEnvironmentModel' -Property *
         )
 
         if ($AsExcelOutput) {
