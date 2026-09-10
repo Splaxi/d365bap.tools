@@ -216,6 +216,9 @@
 		
 		, 'Remove-BapTenantDetail'
 		
+		, 'Remove-UnifiedEnvironmentModule'
+		, 'Remove-UnifiedEnvironmentPackage'
+		
 		, 'Set-BapAzCopyPath'
 		
 		, 'Set-BapEnvironmentLinkEnterprisePolicy'
